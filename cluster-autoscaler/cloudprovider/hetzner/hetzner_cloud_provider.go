@@ -65,6 +65,7 @@ const (
 type HetznerCloudProvider struct {
 	manager         *hetznerManager
 	resourceLimiter *cloudprovider.ResourceLimiter
+	pricingModel    *hetznerPricingModel
 }
 
 // Name returns name of the cloud provider.
@@ -119,10 +120,10 @@ func (d *HetznerCloudProvider) HasInstance(node *apiv1.Node) (bool, error) {
 	return true, cloudprovider.ErrNotImplemented
 }
 
-// Pricing returns pricing model for this cloud provider or error if not
-// available. Implementation optional.
+// Pricing returns pricing model for this cloud provider. Prices are derived
+// from the hourly gross rates embedded in Hetzner server type metadata.
 func (d *HetznerCloudProvider) Pricing() (cloudprovider.PricingModel, autoscalerErrors.AutoscalerError) {
-	return nil, cloudprovider.ErrNotImplemented
+	return d.pricingModel, nil
 }
 
 // GetAvailableMachineTypes get all machine types that can be requested from
@@ -356,5 +357,6 @@ func newHetznerCloudProvider(manager *hetznerManager, rl *cloudprovider.Resource
 	return &HetznerCloudProvider{
 		manager:         manager,
 		resourceLimiter: rl,
+		pricingModel:    newHetznerPricingModel(manager),
 	}, nil
 }
