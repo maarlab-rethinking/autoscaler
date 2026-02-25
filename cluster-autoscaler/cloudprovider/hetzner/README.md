@@ -92,6 +92,43 @@ Multiple flags will create multiple node pools. For example:
 
 You can find a deployment sample under [examples/cluster-autoscaler-run-on-master.yaml](examples/cluster-autoscaler-run-on-master.yaml). Please be aware that you should change the values within this deployment to reflect your cluster.
 
+## Pricing / Price-based expander
+
+The Hetzner Cloud provider implements the `PricingModel` interface, which
+enables the **price** expander (`--expander=price`). When this expander is
+active the autoscaler will prefer the cheapest node group that satisfies the
+pending pods.
+
+Prices are obtained from the hourly gross rates already embedded in the Hetzner
+server type metadata (the same data returned by `GET /server_types`), so **no
+additional API calls or configuration** are required. All prices are in EUR.
+
+### How it works
+
+| Method | Description |
+|---|---|
+| `NodePrice` | Looks up the server type and location from node labels (`node.kubernetes.io/instance-type`, `topology.kubernetes.io/region`) and returns `hourly_gross × hours`. |
+| `PodPrice` | Derives per-vCPU and per-GiB-hour base rates from the full server type catalog via least-squares regression, then prices the pod proportionally to its resource requests. |
+
+### Example
+
+```
+--expander=price
+--nodes=1:10:CX22:FSN1:pool-small-fsn1
+--nodes=1:10:CX32:FSN1:pool-medium-fsn1
+--nodes=1:10:CX22:NBG1:pool-small-nbg1
+```
+
+With the configuration above, the autoscaler will prefer `CX22` nodes (cheaper)
+unless the pending pod does not fit on a `CX22`, in which case it will scale up
+a `CX32`.
+
+### Combining with other expanders
+
+You can chain expanders with `--expander=priority,price` or
+`--expander=price,random` to add tie-breaking logic when multiple node groups
+have the same cost.
+
 ## Development
 
 Make sure you're inside the `cluster-autoscaler` root folder.
